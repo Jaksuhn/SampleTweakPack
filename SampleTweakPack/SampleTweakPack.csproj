@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+    <PropertyGroup>
+        <AssemblyName>tweaks</AssemblyName>
+        <RootNamespace>ComplexTweaks</RootNamespace>
+        <LangVersion>preview</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Nullable>disable</Nullable>
+        <Use_DalamudPackager>false</Use_DalamudPackager>
+        <GenerateErrorForMissingTargetingPacks>false</GenerateErrorForMissingTargetingPacks>
+        <!-- CBT release tag that published sdk.zip. A local CBT build beside this repo is used instead when its sdk.zip exists. -->
+        <CBTVersion>v0.0.1</CBTVersion>
+        <CBTSdkUrl>https://github.com/Jaksuhn/ffxiv-bundleoftweaks/releases/download/$(CBTVersion)/sdk.zip</CBTSdkUrl>
+        <SdkDir>$(MSBuildThisFileDirectory).sdk\</SdkDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="$(SdkDir)Automaton.dll">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="$(SdkDir)clib.dll">
+            <Private>false</Private>
+        </Reference>
+        <Analyzer Include="$(SdkDir)analyzers\InteropSourceGenerator.dll" />
+    </ItemGroup>
+
+    <Target Name="FetchCbtSdk" BeforeTargets="ResolveAssemblyReferences" Condition="!Exists('$(SdkDir)Automaton.dll')">
+        <PropertyGroup>
+            <_LocalSdkZip>$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks\ffxiv_bundledtweaks\bin\$(Configuration)\sdk.zip</_LocalSdkZip>
+            <_LocalSdkZip Condition="!Exists('$(_LocalSdkZip)')">$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks\ffxiv_bundledtweaks\bin\Debug\sdk.zip</_LocalSdkZip>
+            <_SdkZip>$(IntermediateOutputPath)sdk.zip</_SdkZip>
+            <_SdkZip Condition="Exists('$(_LocalSdkZip)')">$(_LocalSdkZip)</_SdkZip>
+        </PropertyGroup>
+        <DownloadFile SourceUrl="$(CBTSdkUrl)" DestinationFolder="$(IntermediateOutputPath)" DestinationFileName="sdk.zip" Condition="'$(CBTVersion)' != '' AND !Exists('$(_LocalSdkZip)')" ContinueOnError="true" />
+        <Error Condition="!Exists('$(_SdkZip)')" Text="CBT SDK not found. Set CBTVersion to a CBT release that contains sdk.zip, or build CBT locally so sdk.zip exists beside this repo." />
+        <Unzip SourceFiles="$(_SdkZip)" DestinationFolder="$(SdkDir)" />
+    </Target>
+</Project>
