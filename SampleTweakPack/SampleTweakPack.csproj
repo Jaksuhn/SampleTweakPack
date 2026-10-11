@@ -8,10 +8,11 @@
         <Nullable>disable</Nullable>
         <Use_DalamudPackager>false</Use_DalamudPackager>
         <GenerateErrorForMissingTargetingPacks>false</GenerateErrorForMissingTargetingPacks>
-        <!-- CBT release tag that published sdk.zip. A local CBT build beside this repo is used instead when its sdk.zip exists. -->
-        <CBTVersion>v0.0.1</CBTVersion>
-        <CBTSdkUrl>https://github.com/Jaksuhn/ffxiv-bundleoftweaks/releases/download/$(CBTVersion)/sdk.zip</CBTSdkUrl>
+        <CBTRepo>https://github.com/Jaksuhn/ffxiv-bundleoftweaks.git</CBTRepo>
         <SdkDir>$(MSBuildThisFileDirectory).sdk\</SdkDir>
+        <CbtUseCheckout Condition="Exists('$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks\ffxiv_bundledtweaks\Automaton.csproj')">true</CbtUseCheckout>
+        <CbtSrc Condition="'$(CbtUseCheckout)'=='true'">$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks</CbtSrc>
+        <CbtSrc Condition="'$(CbtSrc)'==''">$(MSBuildThisFileDirectory).cbt</CbtSrc>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,15 +25,16 @@
         <Analyzer Include="$(SdkDir)analyzers\InteropSourceGenerator.dll" />
     </ItemGroup>
 
-    <Target Name="FetchCbtSdk" BeforeTargets="ResolveAssemblyReferences" Condition="!Exists('$(SdkDir)Automaton.dll')">
+    <Target Name="FetchCbtSdk" BeforeTargets="ResolveAssemblyReferences" Condition="'$(DesignTimeBuild)' != 'true'">
+        <Exec Command="git clone --depth 1 --recurse-submodules &quot;$(CBTRepo)&quot; &quot;$(CbtSrc)&quot;"
+              Condition="'$(CbtUseCheckout)' != 'true' AND !Exists('$(CbtSrc)\ffxiv_bundledtweaks\Automaton.csproj')" />
+        <Exec Command="git -C &quot;$(CbtSrc)&quot; pull --ff-only --recurse-submodules"
+              Condition="'$(CbtUseCheckout)' != 'true' AND Exists('$(CbtSrc)\.git')" />
+        <Exec Command="dotnet build &quot;$(CbtSrc)\ffxiv_bundledtweaks\Automaton.csproj&quot; -c $(Configuration) --nologo" />
         <PropertyGroup>
-            <_LocalSdkZip>$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks\ffxiv_bundledtweaks\bin\$(Configuration)\sdk.zip</_LocalSdkZip>
-            <_LocalSdkZip Condition="!Exists('$(_LocalSdkZip)')">$(MSBuildThisFileDirectory)..\..\ffxiv_bundledtweaks\ffxiv_bundledtweaks\bin\Debug\sdk.zip</_LocalSdkZip>
-            <_SdkZip>$(IntermediateOutputPath)sdk.zip</_SdkZip>
-            <_SdkZip Condition="Exists('$(_LocalSdkZip)')">$(_LocalSdkZip)</_SdkZip>
+            <_SdkZip>$(CbtSrc)\ffxiv_bundledtweaks\bin\$(Configuration)\sdk.zip</_SdkZip>
         </PropertyGroup>
-        <DownloadFile SourceUrl="$(CBTSdkUrl)" DestinationFolder="$(IntermediateOutputPath)" DestinationFileName="sdk.zip" Condition="'$(CBTVersion)' != '' AND !Exists('$(_LocalSdkZip)')" ContinueOnError="true" />
-        <Error Condition="!Exists('$(_SdkZip)')" Text="CBT SDK not found. Set CBTVersion to a CBT release that contains sdk.zip, or build CBT locally so sdk.zip exists beside this repo." />
+        <Error Condition="!Exists('$(_SdkZip)')" Text="CBT build did not produce sdk.zip." />
         <Unzip SourceFiles="$(_SdkZip)" DestinationFolder="$(SdkDir)" />
     </Target>
 </Project>
